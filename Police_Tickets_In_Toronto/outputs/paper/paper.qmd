@@ -1,10 +1,8 @@
 ---
-title: "My title"
-subtitle: "My subtitle if needed"
+title: "Understanding Urban Crimes: An Analysis of Police Tickets in Toronto"
 author: 
-  - First author
-  - Another author
-thanks: "Code and data are available at: LINK."
+  - Yiyan Zhang
+thanks: "Code and data are available at: https://github.com/manfred1201/Term-Paper1"
 date: today
 date-format: long
 abstract: "First sentence. Second sentence. Third sentence. Fourth sentence."
@@ -17,205 +15,142 @@ bibliography: references.bib
 #| include: false
 #| warning: false
 #| message: false
-
+library(ggplot2)
 library(tidyverse)
 library(palmerpenguins)
+library(dplyr)
+library(opendatatoronto)
 ```
-
 
 # Introduction
 
-You can and should cross-reference sections and sub-sections. 
+We will be delving into a fascinating dataset in this essay---the Police Annual Statistical Report on Tickets Issued in Toronto. The objective is to go through the data and determine what it says about how individuals are breaching the law in various regions of the city and whether there is a pattern in who is receiving tickets. It's like taking a closer look at the city to see who is and isn't abiding by the rules. It's very relevant since it can provide us a better understanding of the state of law enforcement and public behavior in the city.
 
-The remainder of this paper is structured as follows. @sec-data....
+I'll start by investigating the different kinds of offenses that are taking place. Are people breaching some rules more often than others? And does it differ depending on where in the city you are? This is essential to comprehending not only what's wrong but also where our efforts should be directed in order to improve things. Seeing any surprising trends in the data, such as if a particular rule is broken significantly more frequently in one neighbourhood than the rest of Toronto, is also fairly interesting.
 
+Finally, I will investigate who is really receiving these tickets. Are the majority of them young? Or is it dispersed among several age groups? This portion of the study may provide valuable insights into which individuals are more likely to violate the law, or it may just indicate that they are being detected more frequently. Furthermore, knowing how offenses are distributed throughout different age groups can give politicians and city planners important information. With this information, they can devise more effective strategies to maintain city safety and ensure that everyone abides by the regulations.
 
+The remainder of this paper is structured as follows. @sec-data,
 
 # Data {#sec-data}
 
-Some of our data is of penguins (@fig-bills), from @palmerpenguins.
+The dataset breaks down the tickets handed out by the Toronto Police from Open Data Toronto (<https://open.toronto.ca/dataset/police-annual-statistical-report-tickets-issued/>). It's sorted by different stuff like the year the ticket was given, what kind of ticket it was, what the offence was, the age group of the person who got the ticket, which police division was involved, and the neighbourhood where it happened. This data covers several years, which lets us see how the patterns in ticket giving have changed over time. The data is loaded directly from open data toronto. [@opendatatoronto]
 
 ```{r}
-#| label: fig-bills
+#| label: vis
 #| fig-cap: Bills of penguins
 #| echo: false
 
-ggplot(penguins, aes(x = island, fill = species)) +
-  geom_bar(alpha = 0.8) +
-  scale_fill_manual(values = c("darkorange","purple","cyan4"),
-                    guide = "none") +
+# Load the data
+resources <- list_package_resources("police-annual-statistical-report-tickets-issued")
+datastore_resources <- filter(resources, tolower(format) %in% c('csv', 'geojson'))
+data <- filter(datastore_resources, row_number()==1) %>% get_resource()
+
+# Tickets Trend Over Years
+ggplot(data, aes(x=OFFENCE_YEAR)) +
+  geom_bar() +
+  labs(title="Number of Tickets Issued per Year", x="Year", y="Number of Tickets") +
+  theme_minimal()
+
+# Ticket Distribution by Offence Category
+ggplot(data, aes(x=OFFENCE_CATEGORY)) +
+  geom_bar() +
+  labs(title="Ticket Distribution by Offence Category", x="Offence Category", y="Number of Tickets") +
   theme_minimal() +
-  facet_wrap(~species, ncol = 1) +
   coord_flip()
+
+# Ticket Distribution by Age Group
+ggplot(data, aes(x=AGE_GROUP)) +
+  geom_bar() +
+  labs(title="Ticket Distribution by Age Group", x="Age Group", y="Number of Tickets") +
+  theme_minimal()
 ```
 
-Talk more about it.
-
-And also planes (@fig-planes). (You can change the height and width, but don't worry about doing that until you have finished every other aspect of the paper - Quarto will try to make it look nice and the defaults usually work well once you have enough text.)
-
-```{r}
-#| label: fig-planes
-#| fig-cap: Relationship between wing length and width
-#| echo: false
-#| warning: false
-#| message: false
-
-analysis_data <- read_csv(here::here("outputs/data/analysis_data.csv"))
-
-analysis_data |> 
-  ggplot(aes(x = width, y = length)) +
-  geom_point(alpha = 0.8) +
-  theme_minimal() +
-  labs(x = "Wing width (mm)",
-       y = "Wing length (mm)")
-```
-
-Talk way more about it. 
-
-
+Based on the visualization results @vis, the overall tickets throughout the years are steady. HTA, CAIA and aggressive driving are the main categories of tickets, indicating that people are more often having the highway traffic violations and insurance issues. With regarding to age, adult group has more violations than youths, which is normal because there are more adults.
 
 # Model
 
-The goal of our modelling strategy is twofold. Firstly,...
+Our modeling strategy has two objectives. First, the future number of tickets can be predicted using a linear regression model. Making better patrol arrangements and projecting future police officer needs can both benefit greatly from this. Second, the association between the age group and the type of violation can be examined using a chi-square test.
 
-Here we briefly describe the Bayesian analysis model used to investigate... Background details and diagnostics are included in [Appendix -@sec-model-details].
+The chi-square test and linear regression model that were utilized to look at are briefly described here. You can get diagnostics and background information in \[Appendix -\@sec-model-details\].
 
 ## Model set-up
 
-Define $y_i$ as the number of seconds that the plane remained aloft. Then $\beta_i$ is the wing width and $\gamma_i$ is the wing length, both measured in millimeters.  
+For the regression model, we use number of tickets as the independent variable and year as the predictor.
 
-\begin{align} 
-y_i|\mu_i, \sigma &\sim \mbox{Normal}(\mu_i, \sigma) \\
-\mu_i &= \alpha + \beta_i + \gamma_i\\
-\alpha &\sim \mbox{Normal}(0, 2.5) \\
-\beta &\sim \mbox{Normal}(0, 2.5) \\
-\gamma &\sim \mbox{Normal}(0, 2.5) \\
-\sigma &\sim \mbox{Exponential}(1)
-\end{align}
-
-We run the model in R [@citeR] using the `rstanarm` package of @rstanarm. We use the default priors from `rstanarm`.
-
-
-### Model justification
-
-We expect a positive relationship between the size of the wings and time spent aloft. In particular...
-
-We can use maths by including latex between dollar signs, for instance $\theta$.
-
-
-# Results
-
-Our results are summarized in @tbl-modelresults.
+We run the model in R [@citeR]. We use the default OLS methods embedded with lm() function.
 
 ```{r}
 #| echo: false
 #| eval: true
 #| warning: false
 #| message: false
+#| output: false
+yearly_data <- data %>%
+  group_by(OFFENCE_YEAR) %>%
+  summarise(total_tickets = sum(TICKET_COUNT))
 
-library(rstanarm)
+# Linear Regression Model
+model <- lm(total_tickets ~ OFFENCE_YEAR, data = yearly_data)
+summary(model)
 
-first_model <-
-  readRDS(file = here::here("outputs/models/first_model.rds"))
+# Plotting
+ggplot(yearly_data, aes(x = OFFENCE_YEAR, y = total_tickets)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(title = "Linear Regression on Ticket Counts per Year", x = "Year", y = "Total Tickets")
 ```
+
+For the Chi-square model, we first create a contingency table between the ticket type and the age group, then utilize the chisq.test() function to test if there is a statistical relationship between two variables.
+
+# Results
+
+The linear regression model is summarized in @tbl-modelresults. From the result, we can tell that the overall tendency of the number of tickets in Toronto is decreasing. However, the parameter of the regression is not significant, which states that this is only a minor decrease.
+
+The Chi-Square result is summarized in @chi-result. The p-value for the chi-square test is significant, which means that there is a relationship between age group and ticket type. As the figure @chi-result shows, the younger group will have more tickets on speeding/aggressive driving problems.
 
 ```{r}
 #| echo: false
 #| eval: true
+#| warning: false
 #| label: tbl-modelresults
 #| tbl-cap: "Explanatory models of flight time based on wing width and wing length"
-#| warning: false
 
 modelsummary::modelsummary(
   list(
-    "First model" = first_model
+    "Linear Regression model" = model
   ),
-  statistic = "mad",
   fmt = 2
 )
 ```
 
-
-
-
-# Discussion
-
-## First discussion point {#sec-first-point}
-
-If my paper were 10 pages, then should be be at least 2.5 pages. The discussion is a chance to show off what you know and what you learnt from all this. 
-
-## Second discussion point
-
-## Third discussion point
-
-## Weaknesses and next steps
-
-Weaknesses and next steps should also be included.
-
-\newpage
-
-\appendix
-
-# Appendix {-}
-
-
-# Additional data details
-
-# Model details {#sec-model-details}
-
-## Posterior predictive check
-
-In @fig-ppcheckandposteriorvsprior-1 we implement a posterior predictive check. This shows...
-
-In @fig-ppcheckandposteriorvsprior-2 we compare the posterior with the prior. This shows... 
-
 ```{r}
+#| label: chi-result
 #| eval: true
 #| echo: false
-#| message: false
-#| warning: false
-#| label: fig-ppcheckandposteriorvsprior
-#| layout-ncol: 2
-#| fig-cap: "Examining how the model fits, and is affected by, the data"
-#| fig-subcap: ["Posterior prediction check", "Comparing the posterior with the prior"]
+data_filtered <- data %>% filter(AGE_GROUP!="Unknown")
+contingency_table <- table(data_filtered$OFFENCE_CATEGORY, data_filtered$AGE_GROUP)
 
-pp_check(first_model) +
-  theme_classic() +
-  theme(legend.position = "bottom")
+# Chi-Square Test
+chi_square_test <- chisq.test(contingency_table)
+print(chi_square_test)
 
-posterior_vs_prior(first_model) +
-  theme_minimal() +
-  scale_color_brewer(palette = "Set1") +
-  theme(legend.position = "bottom") +
-  coord_flip()
+# Optional: Visualizing the contingency table
+contingency_table_long <- as.data.frame(contingency_table) %>%
+  mutate(OFFENCE_CATEGORY = rownames(contingency_table)[Var1])
+
+ggplot(contingency_table_long, aes(x = OFFENCE_CATEGORY, y = Freq, fill = Var2)) +
+  geom_bar(stat="identity", position=position_dodge()) +
+  labs(title = "Offence Category vs Age Group", x = "Offence Category", y = "Frequency") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
 ```
 
-## Diagnostics
+# Conclusion
 
-@fig-stanareyouokay-1 is a trace plot. It shows... This suggests...
+Our initial research indicates notable differences in the issue of tickets between various years and neighborhoods. There seems to be a relationship between particular age groups and particular kinds of offenses. According to spatial data, certain parts of Toronto are hotspots for specific types of offenses. The findings also demonstrate temporal trends in the data, with some offense categories being more or less prevalent over time.
 
-@fig-stanareyouokay-2 is a Rhat plot. It shows... This suggests...
-
-```{r}
-#| echo: false
-#| eval: true
-#| message: false
-#| warning: false
-#| label: fig-stanareyouokay
-#| fig-cap: "Checking the convergence of the MCMC algorithm"
-#| fig-subcap: ["Trace plot", "Rhat plot"]
-#| layout-ncol: 2
-
-plot(first_model, "trace")
-
-plot(first_model, "rhat")
-```
-
-
+Our statistical analyses verify that these differences are meaningful and not merely anomalies. An intelligible and clear explanation of these patterns and trends is made possible by the data visualization.
 
 \newpage
-
 
 # References
-
-
